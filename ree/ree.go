@@ -2,15 +2,21 @@ package ree
 
 import (
 	"encoding/json"
-	"fmt"
+	"encoding/xml"
 	"io"
+	"log"
 	"net/http"
+	"os"
 )
 
 type HandlerFunc func(ctx *Context)
 
 type Engine struct {
-	m map[string]HandlerFunc
+	route *Route
+}
+
+type Route struct {
+	handlers map[string]HandlerFunc
 }
 
 type H map[string]any
@@ -21,12 +27,32 @@ type Context struct {
 }
 
 func New() *Engine {
-	return &Engine{m: make(map[string]HandlerFunc)}
+	return &Engine{route: newRoute()}
+}
+
+func newContext(writer http.ResponseWriter, request *http.Request) *Context {
+	return &Context{
+		Request:        request,
+		ResponseWriter: writer,
+	}
+}
+
+func newRoute() *Route {
+	return &Route{handlers: make(map[string]HandlerFunc)}
+}
+
+func (r *Route) handle(ctx *Context) {
+	key := ctx.Request.Method + "-" + ctx.Request.URL.Path
+	if handlerFunc, ok := r.handlers[key]; ok {
+		handlerFunc(ctx)
+	} else {
+		notFoundHandler(ctx)
+	}
 }
 
 func (e *Engine) addRoute(method string, path string, handler HandlerFunc) {
 	key := method + "-" + path
-	e.m[key] = handler
+	e.route.handlers[key] = handler
 }
 
 func (e *Engine) GET(path string, handler HandlerFunc) {
@@ -45,29 +71,17 @@ func (e *Engine) DELETE(path string, handler HandlerFunc) {
 	e.addRoute(http.MethodDelete, path, handler)
 }
 
-func notFoundHandler(writer http.ResponseWriter, request *http.Request) {
-	fmt.Fprintf(writer, "404 NOT FOUND -- %s", request.URL)
+func notFoundHandler(ctx *Context) {
+	ctx.String(http.StatusNotFound, "404 NOT FOUND")
 }
 
 func (e *Engine) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	key := request.Method + "-" + request.URL.Path
-	context := newContext(writer, request)
-	if v, ok := e.m[key]; ok {
-		v(context)
-	} else {
-		notFoundHandler(writer, request)
-	}
+	c := newContext(writer, request)
+	e.route.handle(c)
 }
 
 func (e *Engine) Start(addr string) error {
 	return http.ListenAndServe(addr, e)
-}
-
-func newContext(writer http.ResponseWriter, request *http.Request) *Context {
-	return &Context{
-		Request:        request,
-		ResponseWriter: writer,
-	}
 }
 
 func (ctx *Context) JSON(code int, data interface{}) {
@@ -80,9 +94,38 @@ func (ctx *Context) JSON(code int, data interface{}) {
 	}
 }
 
-// HTML todo 完成html渲染
+// HTML
 func (ctx *Context) HTML(code int, data interface{}) {
-
+	ctx.SetHeader("Content-Type", "text/html")
+	ctx.Status(code)
+	switch data.(type) {
+	case *os.File:
+		bytes, err := io.ReadAll(data.(*os.File))
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		_, err = ctx.ResponseWriter.Write(bytes)
+		if err != nil {
+			http.Error(ctx.ResponseWriter, err.Error(), 500)
+		}
+		return
+	case string:
+		_, err := ctx.ResponseWriter.Write([]byte(data.(string)))
+		if err != nil {
+			http.Error(ctx.ResponseWriter, err.Error(), 500)
+		}
+		return
+	case []byte:
+		_, err := ctx.ResponseWriter.Write(data.([]byte))
+		if err != nil {
+			http.Error(ctx.ResponseWriter, err.Error(), 500)
+		}
+		return
+	default:
+		log.Println("unsupported data type!")
+	}
+	return
 }
 
 func (ctx *Context) String(code int, data string) {
@@ -109,4 +152,21 @@ func (ctx *Context) BindJSON(data interface{}) error {
 	}
 	err = json.Unmarshal(bytes, &data)
 	return err
+}
+
+func (ctx *Context) BindXML(data any) error {
+	bytes, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		return err
+	}
+	err = xml.Unmarshal(bytes, &data)
+	return err
+}
+
+func (ctx *Context) PostForm(key string) string {
+	return ctx.Request.PostFormValue(key)
+}
+
+func (ctx *Context) Query(key string) string {
+	return ctx.Request.URL.Query().Get(key)
 }
