@@ -1,8 +1,8 @@
 package ree
 
 import (
+	"Ree/ree/bind"
 	"encoding/json"
-	"encoding/xml"
 	"io"
 	"log"
 	"net/http"
@@ -145,22 +145,16 @@ func (ctx *Context) Status(code int) {
 	ctx.ResponseWriter.WriteHeader(code)
 }
 
-func (ctx *Context) BindJSON(data interface{}) error {
-	bytes, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(bytes, &data)
-	return err
+func (ctx *Context) ShouldBind(data any) error {
+	return bind.ShouldBind(ctx.Request, ctx.ResponseWriter, data)
+}
+
+func (ctx *Context) BindJSON(data any) error {
+	return bind.BindJSON(ctx.Request, data)
 }
 
 func (ctx *Context) BindXML(data any) error {
-	bytes, err := io.ReadAll(ctx.Request.Body)
-	if err != nil {
-		return err
-	}
-	err = xml.Unmarshal(bytes, &data)
-	return err
+	return bind.BindXML(ctx.Request, data)
 }
 
 func (ctx *Context) PostForm(key string) string {
