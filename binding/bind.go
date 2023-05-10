@@ -1,4 +1,4 @@
-package bind
+package binding
 
 import (
 	"encoding/json"
@@ -6,6 +6,15 @@ import (
 	"errors"
 	"io"
 	"net/http"
+)
+
+const (
+	TYPEJSON      = "application/json"
+	TYPEXML       = "text/xml"
+	TYPETEXT      = "text/plain"
+	TYPEHTML      = "text/html"
+	TYPEFORM      = "application/x-www-form-urlencoded"
+	TYPEMULTIPART = "multipart/form-data"
 )
 
 func filterContentType(mineType string) string {
@@ -20,9 +29,9 @@ func filterContentType(mineType string) string {
 func ShouldBind(request *http.Request, writer http.ResponseWriter, data any) error {
 	contentType := filterContentType(request.Header.Get("Content-Type"))
 	switch contentType {
-	case "application/json":
+	case TYPEJSON:
 		return BindJSON(request, data)
-	case "text/xml":
+	case TYPEXML:
 		return BindXML(request, data)
 	default:
 		return errors.New("unsupported mine type")
