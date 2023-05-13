@@ -57,7 +57,7 @@ func (r *Route) handle(ctx *Context) {
 	if handlerFunc, ok := r.handlers[key]; ok {
 		handlerFunc(ctx)
 	} else {
-		notFoundHandler(ctx)
+		http.NotFound(ctx.ResponseWriter, ctx.Request)
 	}
 }
 
@@ -80,10 +80,6 @@ func (e *Engine) PUT(path string, handler HandlerFunc) {
 
 func (e *Engine) DELETE(path string, handler HandlerFunc) {
 	e.addRoute(http.MethodDelete, path, handler)
-}
-
-func notFoundHandler(ctx *Context) {
-	ctx.String(http.StatusNotFound, "404 NOT FOUND")
 }
 
 // ServeHTTP 将引擎变为一个http.Handler，将每个请求都用route处理
@@ -187,10 +183,10 @@ func (ctx *Context) Status(code int) {
 	ctx.ResponseWriter.WriteHeader(code)
 }
 
-// ShouldBind 根据请求头自动选择绑定类型
+// Bind 根据请求头自动选择绑定类型
 // 目前支持 JSON XML 类型的请求头
-func (ctx *Context) ShouldBind(data any) error {
-	return binding.ShouldBind(ctx.Request, ctx.ResponseWriter, data)
+func (ctx *Context) Bind(data any) error {
+	return binding.Bind(ctx.Request, ctx.ResponseWriter, data)
 }
 
 func (ctx *Context) BindJSON(data any) error {

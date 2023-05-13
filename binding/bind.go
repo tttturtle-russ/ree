@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"reflect"
 )
 
 const (
@@ -26,7 +27,26 @@ func filterContentType(mineType string) string {
 	return mineType
 }
 
-func ShouldBind(request *http.Request, writer http.ResponseWriter, data any) error {
+func mapBindFiled(data any) map[string]any {
+	m := make(map[string]any)
+	if reflect.TypeOf(data).Kind() != reflect.Ptr {
+		data = &data
+	}
+	valueOf := reflect.ValueOf(data)
+	if valueOf.Elem().CanSet() {
+		valueOf = valueOf.Elem()
+	} else {
+		return nil
+	}
+	for i := 0; i < valueOf.NumField(); i++ {
+		field := valueOf.Field(i)
+		if field.CanSet() {
+
+		}
+	}
+}
+
+func Bind(request *http.Request, writer http.ResponseWriter, data any) error {
 	contentType := filterContentType(request.Header.Get("Content-Type"))
 	switch contentType {
 	case TYPEJSON:
@@ -54,4 +74,15 @@ func BindXML(request *http.Request, data any) error {
 	}
 	err = xml.Unmarshal(bytes, &data)
 	return err
+}
+
+func BindFORM(request *http.Request, data any) error {
+	bytes, err := io.ReadAll(request.Body)
+	if err != nil {
+		return err
+	}
+	if err = request.ParseForm(); err != nil {
+		return err
+	}
+
 }
