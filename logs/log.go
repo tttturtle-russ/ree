@@ -160,8 +160,9 @@ func (l *Logger) out(e *Event) {
 		if err != nil {
 			return
 		}
+		bytes = append(bytes, '\n')
 		if l.f.IsColorable {
-			l.output.Write([]byte(l.f.Color.Sprint(string(bytes))))
+			l.output.Write(bytes)
 			return
 		}
 		l.output.Write(bytes)

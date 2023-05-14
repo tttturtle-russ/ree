@@ -111,7 +111,7 @@ func (e *Engine) Start(addr string) error {
 
 // JSON 以json格式返回数据
 func (ctx *Context) JSON(code int, data interface{}) {
-	ctx.SetHeader("Content-Type", binding.TYPEJSON)
+	ctx.SetHeader("Content-Type", binding.TypeJson)
 	ctx.Status(code)
 	err := json.NewEncoder(ctx.ResponseWriter).Encode(data)
 	if err != nil {
@@ -121,7 +121,7 @@ func (ctx *Context) JSON(code int, data interface{}) {
 
 // HTML 渲染html页面
 func (ctx *Context) HTML(code int, data interface{}) {
-	ctx.SetHeader("Content-Type", binding.TYPEHTML)
+	ctx.SetHeader("Content-Type", binding.TypeHTML)
 	ctx.Status(code)
 	switch data.(type) {
 	case *os.File:
@@ -155,7 +155,7 @@ func (ctx *Context) HTML(code int, data interface{}) {
 
 // String 将数据以string格式返回
 func (ctx *Context) String(code int, data string) {
-	ctx.SetHeader("Content-Type", binding.TYPETEXT)
+	ctx.SetHeader("Content-Type", binding.TypeText)
 	ctx.Status(code)
 	_, err := ctx.ResponseWriter.Write([]byte(data))
 	if err != nil {
@@ -165,7 +165,7 @@ func (ctx *Context) String(code int, data string) {
 
 // XML 将数据以xml格式返回
 func (ctx *Context) XML(code int, data any) {
-	ctx.SetHeader("Content-Type", binding.TYPEXML)
+	ctx.SetHeader("Content-Type", binding.TypeXML)
 	ctx.Status(code)
 	err := xml.NewEncoder(ctx.ResponseWriter).Encode(&data)
 	if err != nil {
@@ -195,6 +195,10 @@ func (ctx *Context) BindJSON(data any) error {
 
 func (ctx *Context) BindXML(data any) error {
 	return binding.BindXML(ctx.Request, data)
+}
+
+func (ctx *Context) BindFORM(data any) error {
+	return binding.BindFORM(ctx.Request, data)
 }
 
 func (ctx *Context) PostForm(key string) string {

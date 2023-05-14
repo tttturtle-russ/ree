@@ -6,16 +6,17 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 )
 
 const (
-	TYPEJSON      = "application/json"
-	TYPEXML       = "text/xml"
-	TYPETEXT      = "text/plain"
-	TYPEHTML      = "text/html"
-	TYPEFORM      = "application/x-www-form-urlencoded"
-	TYPEMULTIPART = "multipart/form-data"
+	TypeJson      = "application/json"
+	TypeXML       = "text/xml"
+	TypeText      = "text/plain"
+	TypeHTML      = "text/html"
+	TypeForm      = "application/x-www-form-urlencoded"
+	TypeMultipart = "multipart/form-data"
 )
 
 func filterContentType(mineType string) string {
@@ -27,12 +28,16 @@ func filterContentType(mineType string) string {
 	return mineType
 }
 
-func mapBindFiled(data any) map[string]any {
-	m := make(map[string]any)
+func mapBindFiled(form url.Values, data any) map[string]any {
+	var typeOf reflect.Type
+	var valueOf reflect.Value
 	if reflect.TypeOf(data).Kind() != reflect.Ptr {
-		data = &data
+		typeOf = reflect.TypeOf(data)
+		valueOf = reflect.ValueOf(&data)
+	} else {
+		typeOf = reflect.TypeOf(*data.(*any))
+		valueOf = reflect.ValueOf(data)
 	}
-	valueOf := reflect.ValueOf(data)
 	if valueOf.Elem().CanSet() {
 		valueOf = valueOf.Elem()
 	} else {
@@ -40,18 +45,21 @@ func mapBindFiled(data any) map[string]any {
 	}
 	for i := 0; i < valueOf.NumField(); i++ {
 		field := valueOf.Field(i)
-		if field.CanSet() {
-
+		type_ := typeOf.Field(i)
+		if field.CanSet() && type_.IsExported() {
+			get := form.Get(type_.Name)
+			field.Set(reflect.ValueOf(get))
 		}
 	}
+	return nil
 }
 
 func Bind(request *http.Request, writer http.ResponseWriter, data any) error {
 	contentType := filterContentType(request.Header.Get("Content-Type"))
 	switch contentType {
-	case TYPEJSON:
+	case TypeJson:
 		return BindJSON(request, data)
-	case TYPEXML:
+	case TypeXML:
 		return BindXML(request, data)
 	default:
 		return errors.New("unsupported mine type")
@@ -77,12 +85,9 @@ func BindXML(request *http.Request, data any) error {
 }
 
 func BindFORM(request *http.Request, data any) error {
-	bytes, err := io.ReadAll(request.Body)
-	if err != nil {
+	if err := request.ParseMultipartForm(1 << 31); err != nil {
 		return err
 	}
-	if err = request.ParseForm(); err != nil {
-		return err
-	}
-
+	mapBindFiled(request.PostForm, data)
+	return nil
 }
