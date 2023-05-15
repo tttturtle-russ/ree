@@ -1,4 +1,4 @@
-package logs
+package rlog
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 
 var defaultLogger *Logger
 var defaultFormat = &Format{
-	Types:       "json",
+	Types:       "",
 	Color:       color.White,
 	IsColorable: true,
 }
@@ -166,5 +166,8 @@ func (l *Logger) out(e *Event) {
 			return
 		}
 		l.output.Write(bytes)
+	default:
+		fmt.Println(e.content)
 	}
+
 }

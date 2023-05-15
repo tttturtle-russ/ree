@@ -21,6 +21,7 @@ type Engine struct {
 
 type Route struct {
 	handlers map[string]HandlerFunc
+	trie     map[string]*node
 }
 
 type H map[string]any
@@ -31,6 +32,7 @@ type Context struct {
 	Method         string
 	Path           string
 	StatusCode     int
+	Params         map[string]string
 	data           map[string]any
 }
 
@@ -49,7 +51,10 @@ func newContext(writer http.ResponseWriter, request *http.Request) *Context {
 }
 
 func newRoute() *Route {
-	return &Route{handlers: make(map[string]HandlerFunc)}
+	return &Route{
+		handlers: make(map[string]HandlerFunc),
+		trie:     make(map[string]*node),
+	}
 }
 
 func (r *Route) handle(ctx *Context) {
@@ -62,8 +67,9 @@ func (r *Route) handle(ctx *Context) {
 }
 
 func (e *Engine) addRoute(method string, path string, handler HandlerFunc) {
-	key := method + "-" + path
-	e.route.handlers[key] = handler
+	if e.route.addRoute(method, path, handler) != nil {
+		panic("路由冲突")
+	}
 }
 
 func (e *Engine) GET(path string, handler HandlerFunc) {
@@ -90,6 +96,7 @@ func (e *Engine) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 // Start 启动http引擎，同时实现优雅的退出
 func (e *Engine) Start(addr string) error {
+	e.route.printRoute()
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: e,
@@ -222,4 +229,8 @@ func (ctx *Context) Get(key string) (any, bool) {
 	}
 	value, ok := ctx.data[key]
 	return value, ok
+}
+
+func (ctx *Context) Param(key string) string {
+
 }
