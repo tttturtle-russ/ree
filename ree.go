@@ -16,7 +16,9 @@ import (
 type HandlerFunc func(ctx *Context)
 
 type Engine struct {
-	route *Route
+	*Routers
+	route   *Route
+	routers []*Routers
 }
 
 type Route struct {
@@ -37,7 +39,10 @@ type Context struct {
 }
 
 func New() *Engine {
-	return &Engine{route: newRoute()}
+	e := &Engine{route: newRoute()}
+	e.Routers = &Routers{engine: e}
+	e.routers = []*Routers{e.Routers}
+	return e
 }
 
 func newContext(writer http.ResponseWriter, request *http.Request) *Context {
@@ -58,18 +63,19 @@ func newRoute() *Route {
 }
 
 func (r *Route) handle(ctx *Context) {
-	key := ctx.Request.Method + "-" + ctx.Request.URL.Path
-	if handlerFunc, ok := r.handlers[key]; ok {
-		handlerFunc(ctx)
+	n, params := r.getRoute(ctx.Method, ctx.Path)
+	if n != nil {
+		ctx.Params = params
+		key := ctx.Method + "-" + n.path
+		handler := r.handlers[key]
+		handler(ctx)
 	} else {
 		http.NotFound(ctx.ResponseWriter, ctx.Request)
 	}
 }
 
 func (e *Engine) addRoute(method string, path string, handler HandlerFunc) {
-	if e.route.addRoute(method, path, handler) != nil {
-		panic("路由冲突")
-	}
+	e.route.addRoute(method, path, handler)
 }
 
 func (e *Engine) GET(path string, handler HandlerFunc) {
@@ -232,5 +238,5 @@ func (ctx *Context) Get(key string) (any, bool) {
 }
 
 func (ctx *Context) Param(key string) string {
-
+	return ctx.Params[key]
 }

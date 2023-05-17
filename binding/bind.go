@@ -1,6 +1,7 @@
 package binding
 
 import (
+	bytes2 "bytes"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -71,6 +72,7 @@ func BindJSON(request *http.Request, data interface{}) error {
 	if err != nil {
 		return err
 	}
+	request.Body = io.NopCloser(bytes2.NewReader(bytes))
 	err = json.Unmarshal(bytes, &data)
 	return err
 }
